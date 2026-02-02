@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const Docxtemplater = require('docxtemplater');
 const PizZip = require('pizzip');
 const { htmlToWordXml, formatDescriptionForWord, injectHyperlinkRels } = require('../helper/htmlToWordXml.helper.js');
@@ -76,7 +76,7 @@ router.post('/upload-participants/:eventId', async (req, res) => {
     const { columnNames, rows } = parseCsvSimple(csvRaw);
     
 
-    const instanceId = uuidv4();
+    const instanceId = crypto.randomUUID();
     const eventParticipantStagingMeta = await eventParticipantStagingMetaModel.create({
       instanceId,
       event: event._id,
