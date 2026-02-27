@@ -13,6 +13,7 @@ const eventParticipantStagingMetaModel = require('../model/eventParticipantStagi
 const eventParticipantStagingModel = require('../model/eventParticipantStaging.model');
 const eventParticipantModel = require('../model/eventParticipant.model');
 const eventParticipantMetaModel = require('../model/eventParticipantMeta.model');
+const ExcelJS = require('exceljs');
 
 router.use(validateToken);
 
@@ -639,6 +640,85 @@ router.get('/participants/:eventId', async (req, res) => {
     return res.status(500).json({
       success: false,
       message: err.message || 'Failed to fetch participants',
+    });
+  }
+});
+
+// GET /participants-export/:eventId – download Excel of participants (including present flag)
+router.get('/participants-export/:eventId', async (req, res) => {
+  try {
+    const event = await eventModel.findById(req.params.eventId);
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found',
+      });
+    }
+    const isCreator = event.eventCreator?.toString() === req.userId?.toString();
+    const isCollaborator = event.collaborators?.some(
+      (c) => c?.toString() === req.userId?.toString()
+    );
+    if (!isCreator && !isCollaborator) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to export participants for this event',
+      });
+    }
+
+    const meta = await eventParticipantMetaModel.findOne({ event: event._id });
+    const participants = await eventParticipantModel
+      .find({ event: event._id })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const metaColumns = meta?.columnNames || [];
+    const dynamicColumns = participants.length > 0
+      ? Array.from(
+          new Set(
+            participants.flatMap((p) => Object.keys(p.data || {}))
+          )
+        )
+      : [];
+    const columnNames = metaColumns.length > 0 ? metaColumns : dynamicColumns;
+    const headers = [...columnNames, 'present'];
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Participants');
+
+    worksheet.columns = headers.map((header) => ({
+      header,
+      key: header,
+      width: Math.max(12, String(header).length + 2),
+    }));
+
+    for (const p of participants) {
+      const row = {};
+      for (const col of columnNames) {
+        row[col] = (p.data && p.data[col] != null) ? p.data[col] : '';
+      }
+      row.present = p.present === true ? 'Yes' : 'No';
+      worksheet.addRow(row);
+    }
+
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+    const safeName = (event.name || 'participants')
+      .replace(/[^a-zA-Z0-9-_]/g, '_')
+      .slice(0, 80);
+
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${safeName}_participants.xlsx"`
+    );
+    res.send(buffer);
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message || 'Failed to export participants',
     });
   }
 });
