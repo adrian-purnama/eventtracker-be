@@ -15,7 +15,8 @@ const eventRoutes = require('./routes/event');
 
 const allowedOrigins = [
     'http://localhost:5173',   // Vite default
-    'https://event-tracker.amfphub.com'
+    'https://event-tracker.amfphub.com',
+    'https://floorcoordinator.amfphub.com'
   ];
   
   app.use(cors({
