@@ -51,7 +51,7 @@ app.get('/api/health', (req, res) => {
 })
 
 mongoose.connect(process.env.MONGODB_URI, {
-    dbName : "app",
+    dbName : "floorcoorddinator",
 })
 .then(()=>{
     populateSystem()

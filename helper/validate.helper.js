@@ -55,9 +55,9 @@ const validateToken = async (req, res, next) => {
   }
 };
 
-/** Must run after validateToken. Returns 403 if req.user.email is not adrianpurnama209@gmail.com */
+/** Must run after validateToken. Allows adrianpurnama209@gmail.com OR any isAdmin user. */
 const requireAdrian = (req, res, next) => {
-  if (req.user?.email !== 'adrianpurnama209@gmail.com') {
+  if (req.user?.email !== 'adrianpurnama209@gmail.com' && req.user?.isAdmin !== true) {
     return res.status(403).json({
       success: false,
       message: 'You are not authorized to access this resource.',
